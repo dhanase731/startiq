@@ -1,0 +1,423 @@
+import type { FormEvent } from 'react'
+import logoMark from './assets/startiqo-logo.svg'
+import './App.css'
+
+type InputField = {
+  label: string
+  name: string
+  type?: 'text' | 'email' | 'tel' | 'url' | 'number' | 'password'
+  required?: boolean
+  placeholder?: string
+  as?: 'input' | 'textarea'
+}
+
+const HOME_PATH = '/'
+
+const lifecycleSteps = [
+  {
+    number: '01',
+    title: 'Application',
+    description:
+      'Submit your role-specific application. Founders, investors, and agencies each have tailored forms.',
+  },
+  {
+    number: '02',
+    title: 'Verification',
+    description:
+      'Profile and LinkedIn verification. Optional document verification for enhanced credibility.',
+  },
+  {
+    number: '03',
+    title: 'Evaluation',
+    description:
+      'Founders receive a Readiness Score (0–100) based on market clarity, traction, team, and financials.',
+  },
+  {
+    number: '04',
+    title: 'Matching',
+    description:
+      'Algorithm matches startups with investors by stage, sector, ticket size, and geography.',
+  },
+  {
+    number: '05',
+    title: 'Introduction',
+    description:
+      'Both parties authorize the connection. Contact details are unlocked simultaneously.',
+  },
+]
+
+const benefits = [
+  {
+    title: 'Verification-First',
+    description:
+      'Every participant is verified. LinkedIn, documents, and profile checks ensure only serious players enter the ecosystem.',
+  },
+  {
+    title: 'Noise Reduction',
+    description:
+      'Controlled Q&A replaces cold outreach. Interact through structured channels before any introduction.',
+  },
+  {
+    title: 'Readiness Scoring',
+    description:
+      'Founders receive a 0–100 score across market clarity, traction, team strength, scalability, and financials.',
+  },
+  {
+    title: 'Curated Matching',
+    description:
+      'Algorithm-driven matching by stage, sector, ticket size, and geography. Quality over quantity.',
+  },
+  {
+    title: 'Gated Introductions',
+    description:
+      'Contact details unlock only when both parties authorize. No spam, no unsolicited pitches.',
+  },
+  {
+    title: 'Lifecycle Tracking',
+    description:
+      'Track progress from application to funding. Clear stages, binary progression, full transparency.',
+  },
+]
+
+const founderFields: InputField[] = [
+  { label: 'Full Name', name: 'fullName', required: true },
+  { label: 'Email', name: 'email', type: 'email', required: true },
+  { label: 'Phone Number', name: 'phone', type: 'tel', required: true },
+  { label: 'Company / Startup Name', name: 'companyName', required: true },
+  { label: 'Website', name: 'website', type: 'url' },
+  { label: 'LinkedIn Profile', name: 'linkedin', type: 'url', required: true },
+  { label: 'Sector / Industry', name: 'sector', required: true },
+  { label: 'Funding Stage', name: 'fundingStage', required: true },
+  { label: 'Amount Seeking (INR)', name: 'amountSeeking', type: 'number', required: true },
+  {
+    label: 'Brief Pitch',
+    name: 'pitch',
+    required: true,
+    as: 'textarea',
+    placeholder: 'Summarize your startup, traction, and use of funds.',
+  },
+]
+
+const investorFields: InputField[] = [
+  { label: 'Full Name', name: 'fullName', required: true },
+  { label: 'Email', name: 'email', type: 'email', required: true },
+  { label: 'Phone Number', name: 'phone', type: 'tel', required: true },
+  { label: 'Firm / Organization', name: 'organization' },
+  { label: 'LinkedIn Profile', name: 'linkedin', type: 'url', required: true },
+  { label: 'Investor Type', name: 'investorType', required: true },
+  { label: 'Sectors of Interest', name: 'sectors', required: true },
+  { label: 'Typical Ticket Size (INR)', name: 'ticketSize', required: true },
+  { label: 'Stage Preference', name: 'stagePreference', required: true },
+  {
+    label: 'Why Startiqo?',
+    name: 'whyStartiqo',
+    required: true,
+    as: 'textarea',
+    placeholder: 'Tell us what kind of opportunities you are looking for.',
+  },
+]
+
+const agencyFields: InputField[] = [
+  { label: 'Contact Person Name', name: 'contactName', required: true },
+  { label: 'Email', name: 'email', type: 'email', required: true },
+  { label: 'Phone Number', name: 'phone', type: 'tel', required: true },
+  { label: 'Agency / Firm Name', name: 'firmName', required: true },
+  { label: 'Website', name: 'website', type: 'url' },
+  { label: 'LinkedIn Profile', name: 'linkedin', type: 'url', required: true },
+  { label: 'Service Type', name: 'serviceType', required: true },
+  { label: 'Regions Served', name: 'regions', required: true },
+  { label: 'Years of Experience', name: 'yearsExperience', type: 'number', required: true },
+  {
+    label: 'About Your Services',
+    name: 'services',
+    required: true,
+    as: 'textarea',
+    placeholder: 'Describe your core services and startup support expertise.',
+  },
+]
+
+function App() {
+  const path = window.location.pathname
+
+  if (path === '/apply/founder') {
+    return <ApplicationPage role="Founder" fields={founderFields} />
+  }
+
+  if (path === '/apply/investor') {
+    return <ApplicationPage role="Investor" fields={investorFields} />
+  }
+
+  if (path === '/apply/agency') {
+    return <ApplicationPage role="Agency" fields={agencyFields} />
+  }
+
+  if (path === '/login') {
+    return <LoginPage />
+  }
+
+  if (path === '/privacy' || path === '/terms' || path === '/contact') {
+    return <NotFoundPage />
+  }
+
+  if (path !== HOME_PATH) {
+    return <NotFoundPage />
+  }
+
+  return (
+    <div className="home-page">
+      <AppHeader />
+
+      <main className="home-main">
+        <section className="hero">
+          <p className="eyebrow">VERIFICATION-FIRST FUNDING ECOSYSTEM</p>
+          <h1>
+            The Trust Layer of <span>Startup Capital</span>
+          </h1>
+          <p className="lead">
+            Startiqo connects verified founders with qualified investors through structured screening,
+            readiness scoring, and curated introductions. No noise. Only signal.
+          </p>
+          <div className="cta-group">
+            <a href="/apply/founder" className="button primary">
+              Apply as Founder
+            </a>
+            <a href="/apply/investor" className="button outline">
+              Apply as Investor
+            </a>
+            <a href="/apply/agency" className="button link-btn">
+              Apply as Agency
+            </a>
+          </div>
+          <ul className="stats">
+            <li>100% Verified Profiles</li>
+            <li>0–100 Readiness Score</li>
+            <li>Curated Introductions</li>
+          </ul>
+        </section>
+
+        <section id="how-it-works" className="section lifecycle-section">
+          <h2>The Funding Lifecycle</h2>
+          <p className="section-lead">
+            A linear, sequential process. Each step is a gate that must be unlocked.
+          </p>
+          <ol className="lifecycle-timeline" aria-label="Funding lifecycle steps">
+            {lifecycleSteps.map((step) => (
+              <li key={step.number} className="timeline-item">
+                <span className="timeline-dot">{step.number}</span>
+                <div className="timeline-content">
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="benefits" className="section">
+          <h2>Built for Trust</h2>
+          <p className="section-lead">
+            Every feature exists to increase signal and eliminate noise in the funding process.
+          </p>
+          <div className="card-grid benefits-grid">
+            {benefits.map((item) => (
+              <article key={item.title} className="info-card">
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="apply" className="section">
+          <h2>Enter the Ecosystem</h2>
+          <p className="section-lead">Choose your role. Applications are reviewed before approval.</p>
+          <div className="card-grid roles-grid">
+            <article className="info-card role-card">
+              <h3>Founders</h3>
+              <p>
+                Get your startup evaluated, scored, and matched with the right investors. Access
+                structured fundraising.
+              </p>
+              <a href="/apply/founder" className="button primary">
+                Apply as Founder
+              </a>
+            </article>
+            <article className="info-card role-card">
+              <h3>Investors</h3>
+              <p>
+                Receive curated, pre-screened deal flow. Interact through controlled Q&amp;A before
+                committing to introductions.
+              </p>
+              <a href="/apply/investor" className="button primary">
+                Apply as Investor
+              </a>
+            </article>
+            <article className="info-card role-card">
+              <h3>Agencies</h3>
+              <p>
+                Access verified startup leads for grant consulting, subsidy advising, and debt
+                financing facilitation.
+              </p>
+              <a href="/apply/agency" className="button primary">
+                Apply as Agency
+              </a>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <a href="/" className="footer-brand" aria-label="Startiqo home">
+          <img src={logoMark} alt="Startiqo logo" className="footer-brand-mark" />
+          <span>Startiqo</span>
+        </a>
+        <p>
+          Startiqo operates as a structured introduction and evaluation platform. We are not a
+          broker, investment advisor, or fund manager. All transactions occur independently between
+          parties.
+        </p>
+        <div className="footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+function AppHeader({ minimal = false }: { minimal?: boolean }) {
+  return (
+    <header className="topbar-wrap">
+      <div className="topbar">
+        <a href="/" className="brand" aria-label="Startiqo home">
+          <img src={logoMark} alt="Startiqo logo" className="brand-mark" />
+          <span>Startiqo</span>
+        </a>
+
+        {!minimal ? (
+          <>
+            <nav className="topnav" aria-label="Primary">
+              <a href="/#how-it-works">How It Works</a>
+              <a href="/#benefits">Benefits</a>
+              <a href="/#apply">Apply</a>
+            </nav>
+            <div className="top-actions">
+              <a href="/login" className="top-login">
+                Login
+              </a>
+              <a href="/apply/founder" className="button top-apply">
+                Apply Now
+              </a>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </header>
+  )
+}
+
+function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Agency'; fields: InputField[] }) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    window.alert(`${role} application submitted successfully.`)
+  }
+
+  return (
+    <div className="route-page">
+      <AppHeader minimal />
+      <main className="route-main">
+        <div className="route-shell">
+          <a href="/" className="back-link">
+            ← Back
+          </a>
+          <h1>{role} Application</h1>
+          <p>All applications are reviewed before approval. Complete all required fields.</p>
+
+          <form className="form-grid" onSubmit={handleSubmit}>
+            {fields.map((field) => (
+              <label key={field.name} className={field.as === 'textarea' ? 'field full' : 'field'}>
+                <span>
+                  {field.label}
+                  {field.required ? '*' : ''}
+                </span>
+                {field.as === 'textarea' ? (
+                  <textarea
+                    name={field.name}
+                    required={field.required}
+                    placeholder={field.placeholder ?? ''}
+                    rows={5}
+                  />
+                ) : (
+                  <input
+                    type={field.type ?? 'text'}
+                    name={field.name}
+                    required={field.required}
+                    placeholder={field.placeholder ?? ''}
+                  />
+                )}
+              </label>
+            ))}
+            <button type="submit" className="button primary full">
+              Submit Application
+            </button>
+          </form>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function LoginPage() {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    window.alert('Login request submitted.')
+  }
+
+  return (
+    <div className="route-page">
+      <AppHeader minimal />
+      <main className="route-main auth-main">
+        <div className="route-shell compact auth-shell">
+          <h1>Welcome back</h1>
+          <p>Login to access your dashboard</p>
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <label className="field full">
+              <span>Email</span>
+              <input type="email" name="email" required placeholder="you@company.com" />
+            </label>
+            <label className="field full">
+              <span>Password</span>
+              <input type="password" name="password" required placeholder="••••••••" />
+            </label>
+            <button type="submit" className="button primary full">
+              Login
+            </button>
+          </form>
+          <p className="tiny-text">
+            Don&apos;t have an account? <a href="/apply/founder">Apply now</a>
+          </p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <div className="route-page">
+      <AppHeader minimal />
+      <main className="route-main">
+        <div className="route-shell compact">
+          <h1>404</h1>
+          <p>Oops! Page not found</p>
+          <a href="/" className="button primary">
+            Return to Home
+          </a>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+export default App

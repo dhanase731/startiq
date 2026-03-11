@@ -82,6 +82,11 @@
   text-decoration: none;
 }
 
+.button:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 .top-apply,
 .button.primary {
   background: #21bfe8;

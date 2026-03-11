@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react'
+import { useState } from 'react'
 import logoMark from './assets/startiqo-logo.svg'
 import './App.css'
 
@@ -12,6 +13,7 @@ type InputField = {
 }
 
 const HOME_PATH = '/'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 const lifecycleSteps = [
   {
@@ -318,9 +320,39 @@ function AppHeader({ minimal = false }: { minimal?: boolean }) {
 }
 
 function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Agency'; fields: InputField[] }) {
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    window.alert(`${role} application submitted successfully.`)
+
+    const formElement = event.currentTarget
+    const formData = new FormData(formElement)
+    const payload = Object.fromEntries(formData.entries())
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/${role.toLowerCase()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message ?? 'Failed to submit application.')
+      }
+
+      window.alert(`${data.message}\nApplication ID: ${data.applicationId}`)
+      formElement.reset()
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Failed to submit application.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -358,8 +390,8 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
                 )}
               </label>
             ))}
-            <button type="submit" className="button primary full">
-              Submit Application
+            <button type="submit" className="button primary full" disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit Application'}
             </button>
           </form>
         </div>
@@ -369,9 +401,41 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
 }
 
 function LoginPage() {
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    window.alert('Login request submitted.')
+
+    const formElement = event.currentTarget
+    const formData = new FormData(formElement)
+    const payload = {
+      email: String(formData.get('email') ?? ''),
+      password: String(formData.get('password') ?? ''),
+    }
+
+    setIsLoggingIn(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message ?? 'Login failed.')
+      }
+
+      window.alert(`${data.message}\nRole: ${data.user.role}`)
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Login failed.')
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
 
   return (
@@ -390,8 +454,8 @@ function LoginPage() {
               <span>Password</span>
               <input type="password" name="password" required placeholder="••••••••" />
             </label>
-            <button type="submit" className="button primary full">
-              Login
+            <button type="submit" className="button primary full" disabled={isLoggingIn}>
+              {isLoggingIn ? 'Logging in...' : 'Login'}
             </button>
           </form>
           <p className="tiny-text">

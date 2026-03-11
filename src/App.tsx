@@ -14,6 +14,7 @@ type InputField = {
 
 const HOME_PATH = '/'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const AUTH_TOKEN_KEY = 'startiq_auth_token'
 
 const lifecycleSteps = [
   {
@@ -157,6 +158,10 @@ function App() {
     return <LoginPage />
   }
 
+  if (path === '/signup') {
+    return <SignupPage />
+  }
+
   if (path === '/privacy' || path === '/terms' || path === '/contact') {
     return <NotFoundPage />
   }
@@ -289,6 +294,15 @@ function App() {
 }
 
 function AppHeader({ minimal = false }: { minimal?: boolean }) {
+  const stored = localStorage.getItem('startiq_user')
+  const user = stored ? JSON.parse(stored) as { fullName: string } : null
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    localStorage.removeItem('startiq_user')
+    window.location.href = '/'
+  }
+
   return (
     <header className="topbar-wrap">
       <div className="topbar">
@@ -305,12 +319,23 @@ function AppHeader({ minimal = false }: { minimal?: boolean }) {
               <a href="/#apply">Apply</a>
             </nav>
             <div className="top-actions">
-              <a href="/login" className="top-login">
-                Login
-              </a>
-              <a href="/apply/founder" className="button top-apply">
-                Apply Now
-              </a>
+              {user ? (
+                <>
+                  <span className="top-user-name">{user.fullName}</span>
+                  <button type="button" className="button top-apply" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a href="/login" className="top-login">
+                    Login
+                  </a>
+                  <a href="/apply/founder" className="button top-apply">
+                    Apply Now
+                  </a>
+                </>
+              )}
             </div>
           </>
         ) : null}
@@ -430,9 +455,22 @@ function LoginPage() {
         throw new Error(data.message ?? 'Login failed.')
       }
 
-      window.alert(`${data.message}\nRole: ${data.user.role}`)
+      if (typeof data.token === 'string') {
+        localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+      }
+
+      if (data.user) {
+        localStorage.setItem('startiq_user', JSON.stringify(data.user))
+      }
+
+      window.location.href = '/'
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Login failed.')
+      const message = error instanceof Error ? error.message : 'Login failed.'
+      if (message.toLowerCase().includes('failed to fetch')) {
+        window.alert('Cannot reach authentication server. Start backend with npm run dev:server (or npm run dev:full).')
+      } else {
+        window.alert(message)
+      }
     } finally {
       setIsLoggingIn(false)
     }
@@ -459,7 +497,102 @@ function LoginPage() {
             </button>
           </form>
           <p className="tiny-text">
-            Don&apos;t have an account? <a href="/apply/founder">Apply now</a>
+            Don&apos;t have an account? <a href="/signup">Create one</a>
+          </p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function SignupPage() {
+  const [isRegistering, setIsRegistering] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const formElement = event.currentTarget
+    const formData = new FormData(formElement)
+
+    const fullName = String(formData.get('fullName') ?? '').trim()
+    const email = String(formData.get('email') ?? '').trim()
+    const password = String(formData.get('password') ?? '')
+    const confirmPassword = String(formData.get('confirmPassword') ?? '')
+
+    if (password !== confirmPassword) {
+      window.alert('Passwords do not match.')
+      return
+    }
+
+    setIsRegistering(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message ?? 'Registration failed.')
+      }
+
+      if (typeof data.token === 'string') {
+        localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+      }
+
+      window.alert(`${data.message}\nYou can now use your credentials to log in.`)
+      window.location.href = '/login'
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Registration failed.'
+      if (message.toLowerCase().includes('failed to fetch')) {
+        window.alert('Cannot reach authentication server. Start backend with npm run dev:server (or npm run dev:full).')
+      } else {
+        window.alert(message)
+      }
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
+  return (
+    <div className="route-page">
+      <AppHeader minimal />
+      <main className="route-main auth-main">
+        <div className="route-shell compact auth-shell">
+          <h1>Create account</h1>
+          <p>Register to access your dashboard</p>
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <label className="field full">
+              <span>Full Name</span>
+              <input type="text" name="fullName" required placeholder="Your full name" />
+            </label>
+            <label className="field full">
+              <span>Email</span>
+              <input type="email" name="email" required placeholder="you@company.com" />
+            </label>
+            <label className="field full">
+              <span>Password</span>
+              <input type="password" name="password" required minLength={8} placeholder="Minimum 8 characters" />
+            </label>
+            <label className="field full">
+              <span>Confirm Password</span>
+              <input type="password" name="confirmPassword" required minLength={8} placeholder="Re-enter password" />
+            </label>
+            <button type="submit" className="button primary full" disabled={isRegistering}>
+              {isRegistering ? 'Creating account...' : 'Create account'}
+            </button>
+          </form>
+          <p className="tiny-text">
+            Already have an account? <a href="/login">Login</a>
           </p>
         </div>
       </main>

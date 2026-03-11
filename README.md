@@ -1,6 +1,7 @@
 # Startiq
 
 A Vite + React frontend with an Express backend for:
+
 - Founder / Investor / Agency application submissions
 - Basic login endpoint (demo credentials)
 - Local JSON persistence for submitted applications
@@ -25,6 +26,10 @@ Start frontend app:
 
 - `npm run dev`
 
+Run both backend and frontend together:
+
+- `npm run dev:full`
+
 Frontend runs at `http://localhost:5173` and proxies `/api` to backend at `http://localhost:5000`.
 
 ## API endpoints
@@ -40,6 +45,8 @@ Frontend runs at `http://localhost:5173` and proxies `/api` to backend at `http:
 
 - Email: `admin@startiqo.com`
 - Password: `password123`
+
+If login shows a network error, ensure backend is running (`npm run dev:server` or `npm run dev:full`).
 
 ## Notes
 

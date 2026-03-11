@@ -69,6 +69,11 @@
   font-weight: 700;
 }
 
+.top-user-name {
+  color: #c6dcff;
+  font-weight: 600;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -473,6 +478,11 @@
 
 .tiny-text a {
   color: #20bde5;
+}
+
+.creds-hint {
+  font-size: 0.82rem;
+  opacity: 0.9;
 }
 
 @media (max-width: 900px) {

@@ -1,5 +1,7 @@
 import cors from 'cors'
 import express from 'express'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +13,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const dataDir = path.join(__dirname, 'data')
 const applicationsFile = path.join(dataDir, 'applications.json')
+const usersFile = path.join(dataDir, 'users.json')
+const JWT_SECRET = process.env.JWT_SECRET || 'replace_with_strong_secret'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 
 const requiredFieldsByRole = {
   founder: ['fullName', 'email', 'phone', 'companyName', 'linkedin', 'sector', 'fundingStage', 'amountSeeking', 'pitch'],
@@ -67,7 +72,65 @@ app.post('/api/applications/:role', async (req, res) => {
   })
 })
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
+  const { fullName, email, password } = req.body ?? {}
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ message: 'Full name, email, and password are required.' })
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase()
+  const normalizedName = String(fullName).trim()
+  const normalizedPassword = String(password)
+
+  if (normalizedPassword.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters.' })
+  }
+
+  const users = await readUsers()
+  const existingUser = users.find((user) => user.email === normalizedEmail)
+
+  if (existingUser) {
+    return res.status(409).json({ message: 'Email is already registered.' })
+  }
+
+  const passwordHash = await bcrypt.hash(normalizedPassword, 10)
+
+  const user = {
+    id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    fullName: normalizedName,
+    email: normalizedEmail,
+    passwordHash,
+    role: 'user',
+    createdAt: new Date().toISOString(),
+  }
+
+  users.push(user)
+  await writeUsers(users)
+
+  const token = jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN },
+  )
+
+  return res.status(201).json({
+    message: 'Registration successful.',
+    token,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+    },
+  })
+})
+
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body ?? {}
 
   if (!email || !password) {
@@ -76,19 +139,74 @@ app.post('/api/auth/login', (req, res) => {
 
   const normalizedEmail = String(email).trim().toLowerCase()
   const normalizedPassword = String(password)
+  const users = await readUsers()
+  const user = users.find((item) => item.email === normalizedEmail)
 
-  if (normalizedEmail === 'admin@startiqo.com' && normalizedPassword === 'password123') {
-    return res.json({
-      message: 'Login successful.',
-      token: `demo_token_${Date.now()}`,
-      user: {
-        email: normalizedEmail,
-        role: 'admin',
-      },
-    })
+  if (!user) {
+    return res.status(401).json({ message: 'Invalid credentials.' })
   }
 
-  return res.status(401).json({ message: 'Invalid credentials.' })
+  const isValidPassword = await bcrypt.compare(normalizedPassword, user.passwordHash)
+
+  if (!isValidPassword) {
+    return res.status(401).json({ message: 'Invalid credentials.' })
+  }
+
+  const token = jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN },
+  )
+
+  return res.json({
+    message: 'Login successful.',
+    token,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+    },
+  })
+
+})
+
+app.get('/api/auth/me', async (req, res) => {
+  const token = getBearerToken(req)
+
+  if (!token) {
+    return res.status(401).json({ message: 'Missing authorization token.' })
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+
+    if (!payload || typeof payload !== 'object' || !payload.sub) {
+      return res.status(401).json({ message: 'Invalid token.' })
+    }
+
+    const users = await readUsers()
+    const user = users.find((item) => item.id === payload.sub)
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found.' })
+    }
+
+    return res.json({
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    })
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired token.' })
+  }
 })
 
 app.get('/api/applications', async (req, res) => {
@@ -120,6 +238,12 @@ async function ensureDataFile() {
   } catch {
     await writeFile(applicationsFile, '[]', 'utf-8')
   }
+
+  try {
+    await readFile(usersFile, 'utf-8')
+  } catch {
+    await writeFile(usersFile, '[]', 'utf-8')
+  }
 }
 
 async function readApplications() {
@@ -137,4 +261,31 @@ async function readApplications() {
 async function writeApplications(applications) {
   await ensureDataFile()
   await writeFile(applicationsFile, JSON.stringify(applications, null, 2), 'utf-8')
+}
+
+async function readUsers() {
+  await ensureDataFile()
+  const raw = await readFile(usersFile, 'utf-8')
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function writeUsers(users) {
+  await ensureDataFile()
+  await writeFile(usersFile, JSON.stringify(users, null, 2), 'utf-8')
+}
+
+function getBearerToken(req) {
+  const authorizationHeader = req.headers.authorization
+
+  if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  return authorizationHeader.slice('Bearer '.length).trim()
 }

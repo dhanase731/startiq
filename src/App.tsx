@@ -2,6 +2,11 @@ import type { FormEvent } from 'react'
 import { useState } from 'react'
 import logoMark from './assets/startiqo-logo.svg'
 import './App.css'
+import AdminDashboard from './admin/AdminDashboard.tsx'
+import AdminUsers from './admin/AdminUsers.tsx'
+import AdminApplications from './admin/AdminApplications.tsx'
+import AdminAnalytics from './admin/AdminAnalytics.tsx'
+import AdminSettings from './admin/AdminSettings.tsx'
 
 type InputField = {
   label: string
@@ -141,6 +146,48 @@ const agencyFields: InputField[] = [
 
 function App() {
   const path = window.location.pathname
+  const isLoggedIn = isUserLoggedIn()
+
+  // Admin routes
+  if ((path === '/admin' || path === '/admin/') && !isLoggedIn) {
+    return <AdminLoginRequiredPage requestedPath="/admin" />
+  }
+
+  if (path === '/admin' || path === '/admin/') {
+    return <AdminDashboard />
+  }
+
+  if (path === '/admin/users' && !isLoggedIn) {
+    return <AdminLoginRequiredPage requestedPath="/admin/users" />
+  }
+
+  if (path === '/admin/users') {
+    return <AdminUsers />
+  }
+
+  if (path === '/admin/applications' && !isLoggedIn) {
+    return <AdminLoginRequiredPage requestedPath="/admin/applications" />
+  }
+
+  if (path === '/admin/applications') {
+    return <AdminApplications />
+  }
+
+  if (path === '/admin/analytics' && !isLoggedIn) {
+    return <AdminLoginRequiredPage requestedPath="/admin/analytics" />
+  }
+
+  if (path === '/admin/analytics') {
+    return <AdminAnalytics />
+  }
+
+  if (path === '/admin/settings' && !isLoggedIn) {
+    return <AdminLoginRequiredPage requestedPath="/admin/settings" />
+  }
+
+  if (path === '/admin/settings') {
+    return <AdminSettings />
+  }
 
   if (path === '/apply/founder') {
     return <ApplicationPage role="Founder" fields={founderFields} />
@@ -294,8 +341,7 @@ function App() {
 }
 
 function AppHeader({ minimal = false }: { minimal?: boolean }) {
-  const stored = localStorage.getItem('startiq_user')
-  const user = stored ? JSON.parse(stored) as { fullName: string } : null
+  const user = getLoggedInUser()
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -317,6 +363,7 @@ function AppHeader({ minimal = false }: { minimal?: boolean }) {
               <a href="/#how-it-works">How It Works</a>
               <a href="/#benefits">Benefits</a>
               <a href="/#apply">Apply</a>
+              <a href={user ? '/admin' : '/login?next=%2Fadmin'}>Admin</a>
             </nav>
             <div className="top-actions">
               {user ? (
@@ -427,6 +474,7 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
 
 function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const nextPath = new URLSearchParams(window.location.search).get('next')
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -463,7 +511,11 @@ function LoginPage() {
         localStorage.setItem('startiq_user', JSON.stringify(data.user))
       }
 
-      window.location.href = '/'
+      if (nextPath && nextPath.startsWith('/')) {
+        window.location.href = nextPath
+      } else {
+        window.location.href = '/'
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed.'
       if (message.toLowerCase().includes('failed to fetch')) {
@@ -615,6 +667,47 @@ function NotFoundPage() {
       </main>
     </div>
   )
+}
+
+function AdminLoginRequiredPage({ requestedPath }: { requestedPath: string }) {
+  return (
+    <div className="route-page">
+      <AppHeader minimal />
+      <main className="route-main auth-main">
+        <div className="route-shell compact auth-shell">
+          <h1>Admin login required</h1>
+          <p>Please login first to open the admin panel.</p>
+          <a className="button primary full" href={`/login?next=${encodeURIComponent(requestedPath)}`}>
+            Go to Login
+          </a>
+          <p className="tiny-text">
+            Tip: after login, you will be redirected back automatically.
+          </p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function isUserLoggedIn() {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  const user = getLoggedInUser()
+  return Boolean(token && user)
+}
+
+function getLoggedInUser(): { fullName?: string; email?: string } | null {
+  const raw = localStorage.getItem('startiq_user')
+
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed as { fullName?: string; email?: string } : null
+  } catch {
+    return null
+  }
 }
 
 export default App

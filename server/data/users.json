@@ -6,5 +6,13 @@
     "passwordHash": "$2b$10$6xcHbFnsh2Q1gsor7ERVp.JZOzSzg4BIn61ns.MO/jslPb4Own3F6",
     "role": "user",
     "createdAt": "2026-03-11T16:28:26.206Z"
+  },
+  {
+    "id": "usr_1773295299424_tp94h7",
+    "fullName": "DHANASEELAN M CSE",
+    "email": "dhanaseelan.m2024cse@sece.ac.in",
+    "passwordHash": "$2b$10$bTj03u0xRqzv.CoIEaFqpON7hI9P6cnxxkfPO249n4Riqrxn39B06",
+    "role": "user",
+    "createdAt": "2026-03-12T06:01:39.424Z"
   }
 ]

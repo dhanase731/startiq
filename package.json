@@ -8,6 +8,7 @@
     "dev:full": "concurrently \"npm:dev:server\" \"npm:dev\"",
     "dev:server": "node --env-file=.env --watch server/index.js",
     "server": "node --env-file=.env server/index.js",
+    "db:migrate": "node --env-file=.env -e \"import('./server/db.js').then(m=>m.initDb()).then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -17,6 +18,7 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "pg": "^8.20.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -3,14 +3,16 @@
 A Vite + React frontend with an Express backend for:
 
 - Founder / Investor / Agency application submissions
-- Basic login endpoint (demo credentials)
-- Local JSON persistence for submitted applications
+- Email/password authentication (JWT)
+- Admin management endpoints
+- PostgreSQL persistence for users and applications
 
 ## Tech stack
 
 - Frontend: React + TypeScript + Vite
 - Backend: Node.js + Express
-- Storage: `server/data/applications.json`
+- Storage: PostgreSQL (`pg`)
+- Optional production hosting: Firebase Hosting + Firebase Functions
 
 ## Run locally
 
@@ -43,12 +45,55 @@ Frontend runs at `http://localhost:5173` and proxies `/api` to backend at `http:
 
 ## Demo login
 
-- Email: `admin@startiqo.com`
-- Password: `password123`
+- There is no permanent hardcoded demo user.
+- Create an account from `/signup` (or register through `POST /api/auth/register`).
+- Login uses the credentials stored in PostgreSQL.
 
 If login shows a network error, ensure backend is running (`npm run dev:server` or `npm run dev:full`).
 
+## Deploy to Firebase (Frontend + API)
+
+This repo includes Firebase configuration for:
+
+- Hosting static frontend from `dist`
+- Rewriting `/api/**` to the Cloud Function `api`
+
+### 1) Install dependencies
+
+- Root app: `npm install`
+- Functions runtime: `cd functions && npm install`
+
+### 2) Configure environment
+
+- Frontend production API base is set to `VITE_API_BASE_URL=/api` in `.env.production`
+- Configure backend env vars for Functions using `functions/.env.example` as reference
+
+### 3) Build frontend
+
+- `npm run build`
+
+### 4) Deploy
+
+- `firebase deploy --only functions,hosting`
+
+### 5) Verify
+
+- `https://<your-site>.web.app/api/health`
+- Then test login/signup in deployed site
+
+## Free option (no Blaze plan)
+
+If you cannot upgrade to Firebase Blaze, the app can still run on Firebase Hosting only:
+
+- Production uses `VITE_DEMO_MODE=true`
+- Login/Signup/Application submissions are stored in browser `localStorage`
+- No server-side API is required for this mode
+
+Deploy command:
+
+- `firebase deploy --only hosting`
+
 ## Notes
 
-- Application data is stored in `server/data/applications.json`.
-- This backend is suitable for development/demo use. For production, add proper auth, a real database, and rate limiting.
+- Ensure your PostgreSQL instance allows connections from Cloud Functions egress.
+- Set a strong `JWT_SECRET` in production.

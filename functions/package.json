@@ -1,0 +1,22 @@
+{
+  "name": "startiqo-functions",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "lint": "echo 'No lint configured for functions'"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "firebase-functions": "^6.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.20.0"
+  }
+}

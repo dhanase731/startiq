@@ -20,6 +20,150 @@ type InputField = {
 const HOME_PATH = '/'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const AUTH_TOKEN_KEY = 'startiq_auth_token'
+const DEMO_MODE_ENABLED = import.meta.env.VITE_DEMO_MODE === 'true'
+const DEMO_USERS_KEY = 'startiq_demo_users'
+const DEMO_APPLICATIONS_KEY = 'startiq_demo_applications'
+
+type DemoUserRecord = {
+  id: string
+  fullName: string
+  email: string
+  password: string
+  role: 'user'
+  createdAt: string
+}
+
+async function parseApiResponse(response: Response) {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+
+  if (contentType.includes('application/json')) {
+    return response.json()
+  }
+
+  const text = await response.text()
+  throw new Error(
+    text.includes('<!doctype') || text.includes('<html')
+      ? 'API endpoint returned HTML instead of JSON. Check VITE_API_BASE_URL and backend deployment.'
+      : `Unexpected API response format (${contentType || 'unknown content type'}).`,
+  )
+}
+
+function isApiUnavailableError(message: string) {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('failed to fetch')
+    || lower.includes('returned html instead of json')
+    || lower.includes('unexpected api response format')
+  )
+}
+
+function getDemoUsers() {
+  try {
+    const raw = localStorage.getItem(DEMO_USERS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed as DemoUserRecord[] : []
+  } catch {
+    return []
+  }
+}
+
+function saveDemoUsers(users: DemoUserRecord[]) {
+  localStorage.setItem(DEMO_USERS_KEY, JSON.stringify(users))
+}
+
+function upsertDefaultDemoAdmin() {
+  const users = getDemoUsers()
+  const adminEmail = 'admin@startiqo.com'
+  if (users.some((user) => user.email === adminEmail)) {
+    return users
+  }
+  const admin: DemoUserRecord = {
+    id: `usr_demo_${Date.now()}`,
+    fullName: 'Admin User',
+    email: adminEmail,
+    password: 'password123',
+    role: 'user',
+    createdAt: new Date().toISOString(),
+  }
+  const nextUsers = [admin, ...users]
+  saveDemoUsers(nextUsers)
+  return nextUsers
+}
+
+function createDemoToken(email: string) {
+  return `demo_${btoa(`${email}_${Date.now()}`)}`
+}
+
+function loginDemoUser(email: string, password: string) {
+  const users = upsertDefaultDemoAdmin()
+  const normalizedEmail = email.trim().toLowerCase()
+  const user = users.find((entry) => entry.email === normalizedEmail)
+  if (!user || user.password !== password) {
+    throw new Error('Invalid credentials.')
+  }
+  return {
+    token: createDemoToken(user.email),
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    },
+  }
+}
+
+function registerDemoUser(fullName: string, email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (password.length < 8) {
+    throw new Error('Password must be at least 8 characters.')
+  }
+  const users = upsertDefaultDemoAdmin()
+  if (users.some((user) => user.email === normalizedEmail)) {
+    throw new Error('Email is already registered.')
+  }
+  const nextUser: DemoUserRecord = {
+    id: `usr_demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    fullName: fullName.trim(),
+    email: normalizedEmail,
+    password,
+    role: 'user',
+    createdAt: new Date().toISOString(),
+  }
+  saveDemoUsers([nextUser, ...users])
+  return {
+    token: createDemoToken(nextUser.email),
+    user: {
+      id: nextUser.id,
+      fullName: nextUser.fullName,
+      email: nextUser.email,
+      role: nextUser.role,
+      createdAt: nextUser.createdAt,
+    },
+  }
+}
+
+function saveDemoApplication(role: 'founder' | 'investor' | 'agency', payload: Record<string, FormDataEntryValue>) {
+  const id = `app_demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const record = {
+    id,
+    role,
+    payload,
+    status: 'received',
+    submittedAt: new Date().toISOString(),
+  }
+
+  try {
+    const raw = localStorage.getItem(DEMO_APPLICATIONS_KEY)
+    const current = raw ? JSON.parse(raw) : []
+    const next = Array.isArray(current) ? [record, ...current] : [record]
+    localStorage.setItem(DEMO_APPLICATIONS_KEY, JSON.stringify(next))
+  } catch {
+    localStorage.setItem(DEMO_APPLICATIONS_KEY, JSON.stringify([record]))
+  }
+
+  return id
+}
 
 const lifecycleSteps = [
   {
@@ -404,6 +548,13 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
     setIsSubmitting(true)
 
     try {
+      if (DEMO_MODE_ENABLED) {
+        const applicationId = saveDemoApplication(role.toLowerCase() as 'founder' | 'investor' | 'agency', payload)
+        window.alert(`${role} application saved in demo mode.\nApplication ID: ${applicationId}`)
+        formElement.reset()
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/applications/${role.toLowerCase()}`, {
         method: 'POST',
         headers: {
@@ -412,7 +563,7 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
         body: JSON.stringify(payload),
       })
 
-      const data = await response.json()
+      const data = await parseApiResponse(response)
 
       if (!response.ok) {
         throw new Error(data.message ?? 'Failed to submit application.')
@@ -421,7 +572,14 @@ function ApplicationPage({ role, fields }: { role: 'Founder' | 'Investor' | 'Age
       window.alert(`${data.message}\nApplication ID: ${data.applicationId}`)
       formElement.reset()
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Failed to submit application.')
+      const message = error instanceof Error ? error.message : 'Failed to submit application.'
+      if (isApiUnavailableError(message)) {
+        const applicationId = saveDemoApplication(role.toLowerCase() as 'founder' | 'investor' | 'agency', payload)
+        window.alert(`${role} application saved in demo mode.\nApplication ID: ${applicationId}`)
+        formElement.reset()
+      } else {
+        window.alert(message)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -489,6 +647,18 @@ function LoginPage() {
     setIsLoggingIn(true)
 
     try {
+      if (DEMO_MODE_ENABLED) {
+        const demo = loginDemoUser(payload.email, payload.password)
+        localStorage.setItem(AUTH_TOKEN_KEY, demo.token)
+        localStorage.setItem('startiq_user', JSON.stringify(demo.user))
+        if (nextPath && nextPath.startsWith('/')) {
+          window.location.href = nextPath
+        } else {
+          window.location.href = '/'
+        }
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -497,7 +667,7 @@ function LoginPage() {
         body: JSON.stringify(payload),
       })
 
-      const data = await response.json()
+      const data = await parseApiResponse(response)
 
       if (!response.ok) {
         throw new Error(data.message ?? 'Login failed.')
@@ -518,8 +688,20 @@ function LoginPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed.'
-      if (message.toLowerCase().includes('failed to fetch')) {
-        window.alert('Cannot reach authentication server. Start backend with npm run dev:server (or npm run dev:full).')
+      if (isApiUnavailableError(message)) {
+        try {
+          const demo = loginDemoUser(payload.email, payload.password)
+          localStorage.setItem(AUTH_TOKEN_KEY, demo.token)
+          localStorage.setItem('startiq_user', JSON.stringify(demo.user))
+          window.alert('Backend unavailable. Logged in using free demo mode (browser local data).')
+          if (nextPath && nextPath.startsWith('/')) {
+            window.location.href = nextPath
+          } else {
+            window.location.href = '/'
+          }
+        } catch (demoError) {
+          window.alert(demoError instanceof Error ? demoError.message : 'Login failed.')
+        }
       } else {
         window.alert(message)
       }
@@ -579,6 +761,13 @@ function SignupPage() {
     setIsRegistering(true)
 
     try {
+      if (DEMO_MODE_ENABLED) {
+        registerDemoUser(fullName, email, password)
+        window.alert('Registration successful in demo mode. You can now log in.')
+        window.location.href = '/login'
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
@@ -591,7 +780,7 @@ function SignupPage() {
         }),
       })
 
-      const data = await response.json()
+      const data = await parseApiResponse(response)
 
       if (!response.ok) {
         throw new Error(data.message ?? 'Registration failed.')
@@ -605,8 +794,14 @@ function SignupPage() {
       window.location.href = '/login'
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Registration failed.'
-      if (message.toLowerCase().includes('failed to fetch')) {
-        window.alert('Cannot reach authentication server. Start backend with npm run dev:server (or npm run dev:full).')
+      if (isApiUnavailableError(message)) {
+        try {
+          registerDemoUser(fullName, email, password)
+          window.alert('Backend unavailable. Registered in free demo mode (browser local data). You can now log in.')
+          window.location.href = '/login'
+        } catch (demoError) {
+          window.alert(demoError instanceof Error ? demoError.message : 'Registration failed.')
+        }
       } else {
         window.alert(message)
       }

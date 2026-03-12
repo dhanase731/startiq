@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "",
-    "staging": "startiqo"
+    "default": "startiqo-d0ad8",
+    "staging": "startiqo-d0ad8"
   },
   "targets": {},
   "etags": {}
